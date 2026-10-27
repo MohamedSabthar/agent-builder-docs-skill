@@ -1,0 +1,10 @@
+{
+  "name": "agent-builder-docs-harness",
+  "private": true,
+  "type": "module",
+  "description": "Playwright harness for driving WSO2 Agent Builder over CDP",
+  "dependencies": {
+    "playwright": "1.48.2",
+    "ws": "8.18.0"
+  }
+}
