@@ -22,6 +22,8 @@
 3. Run `bin/code --install-extension <vsix> --force` for each VSIX.
 4. Check the result with `--list-extensions --show-versions`.
 
+Gotcha: `--install-extension` refuses a VSIX whose version is lower than the bundled copy ("…is a built-in extension with version …"), which is why step 2 deletes the bundled extensions. For example, a drop's `wso2-integrator` 1.1.26081017 is lower than the 1.1.26101805 bundled with 1.0.0-alpha2. If you can't modify the `.app` (on a managed Mac, a modified copy of the app got SIGKILLed and removed), raise the version in the VSIX's `extension/package.json` and `extension.vsixmanifest`, re-zip it, and install that into a separate `--extensions-dir`: VS Code prefers a user extension with a higher version over the built-in.
+
 Gotcha: if the `.app` was just dragged from the DMG, Finder may still be copying it (xattr `com.apple.metadata:kMDItemResumableCopy`, missing `bin/code`). The CLI then gets SIGKILLed (exit 137). Open the app once, or wait for the copy to finish.
 
 ## Terminology (use these in docs)
