@@ -70,7 +70,8 @@ or just ask: "Rewrite the memory.md Agent Builder docs page". Claude reads `SKIL
 | `SKILL.md` | The workflow Claude follows |
 | `doc-conventions.md` | Branch, PR, screenshot and verification rules |
 | `product.md`, `ui-map.md`, `flow-*.md`, `commands.md`, `labels-source.md` | Verified UI knowledge (labels, click paths, generated code) |
-| `lib.mjs`, `launch.sh`, `example-step.mjs`, `package.json` | Playwright harness that drives the Electron app over CDP |
+| `lib.mjs`, `launch.sh`, `example-step.mjs`, `package.json` | Playwright harness that drives the Electron app over CDP (`recordGif` needs `ffmpeg`) |
+| `demo-mcp-server.mjs` | Fake stdio MCP server for MCP screenshots |
 | `linkcheck.py` | Checks every link and anchor on built pages, including cross-product links |
 
 Notes were verified against `wso2.ballerina@6.2.0-SNAPSHOT` and `wso2.wso2-integrator@1.1.26081017`. When the UI changes, update the notes so the whole team benefits (see Contributing).

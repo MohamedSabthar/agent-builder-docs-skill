@@ -14,10 +14,11 @@ Read these files (in this skill's folder) before starting:
 | `doc-conventions.md` | Repo, branch, PR, screenshot and verification rules. **Follow them exactly.** |
 | `product.md` | Product facts, terminology map (Integrator → Agent Builder), install steps for extension drops |
 | `ui-map.md` | Welcome page, create-project wizard, workbench, overview, Copilot, designer labels |
-| `flow-create-agent.md`, `flow-tools.md`, `flow-gated-tools.md` | Verified click paths, labels, form fields and generated code |
+| `flow-create-agent.md`, `flow-tools.md`, `flow-gated-tools.md`, `flow-copilot.md`, `flow-evaluations.md` | Verified click paths, labels, form fields and generated code |
 | `commands.md` | Command IDs and palette titles |
 | `labels-source.md` | Where to grep exact UI labels in the installed extensions |
-| `lib.mjs`, `launch.sh`, `example-step.mjs` | Playwright harness for driving the app and taking screenshots |
+| `lib.mjs`, `launch.sh`, `example-step.mjs` | Playwright harness for driving the app, taking screenshots and recording GIFs (`recordGif`) |
+| `demo-mcp-server.mjs` | Fake stdio MCP server for MCP manager screenshots |
 | `linkcheck.py` | Link and anchor checker for built pages |
 
 Everything in those notes was verified against `wso2.ballerina@6.2.0-SNAPSHOT` and `wso2.wso2-integrator@1.1.26081017`. If the installed versions differ, re-verify labels in the app before trusting them.
@@ -46,6 +47,8 @@ node my-step.mjs                         # write small step scripts like example
 ```
 
 - Use the **normal profile** (the default). Sign-in calls back through `wso2-agent-builder://`, which only reaches the default-profile instance, so an isolated profile can't sign in. Running agents and chat need sign-in (the Default WSO2 Model Provider).
+  - An isolated profile (`--user-data-dir`, own `HOME`) can sign in only if it's the **only** running copy of the app, so macOS hands it the link, and with `"integrator.advanced.skipKeyring": true` so the CLI keeps its session in files under that `HOME` instead of the shared keychain.
+  - If you give the app a `HOME` without `Library`, macOS shows "Keychain Not Found" with **Reset To Defaults**. Never click it (it resets the login keychain). Quit the app, and link `$HOME/Library` to your real `~/Library` first.
 - Webviews (welcome page, designer, forms, chat, trace viewer) are out-of-process iframes. Use `webviewWith(text)` and the `Webview` helpers (`clickText`, `fill`, `fillSelector`, `key`, `box`, `closeTopmost`), not Playwright locators.
 - Canvas labels are SVG `<text>` elements; `clickText` handles them with real mouse events.
 - Drawers and modals ignore Escape. Use `closeTopmost()`, `closeDrawer(page)`, or a breadcrumb.

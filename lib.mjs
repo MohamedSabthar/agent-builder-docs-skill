@@ -329,3 +329,66 @@ export async function clearHover(page) {
   await page.keyboard.press('Escape');
   await page.mouse.move(Math.round(w * 0.46), h - 45); await page.waitForTimeout(1500);
 }
+
+// ---- Cursor overlay and GIFs ------------------------------------------------
+// CDP input moves no visible pointer, so a GIF would show clicks with nothing moving. These
+// draw a fake arrow in the workbench page (it sits above the webview iframes). Window CSS px.
+// The page's Trusted Types policy rejects innerHTML, so the SVG is built with DOM calls.
+let cursorAt = { x: 400, y: 400 };
+export async function showCursor(page, x = cursorAt.x, y = cursorAt.y) {
+  await page.evaluate(([x, y]) => {
+    let c = document.getElementById('__kb_cursor');
+    if (!c) {
+      const ns = 'http://www.w3.org/2000/svg';
+      c = document.createElement('div'); c.id = '__kb_cursor';
+      c.style.cssText = 'position:fixed;z-index:2147483647;pointer-events:none;';
+      const svg = document.createElementNS(ns, 'svg'); svg.setAttribute('width', '22'); svg.setAttribute('height', '30');
+      const p = document.createElementNS(ns, 'path'); p.setAttribute('d', 'M2 2 L2 24 L8 18 L12 28 L16 26 L12 16 L20 16 Z');
+      p.setAttribute('fill', 'black'); p.setAttribute('stroke', 'white'); p.setAttribute('stroke-width', '1.6');
+      svg.appendChild(p); c.appendChild(svg); document.body.appendChild(c);
+    }
+    c.style.left = `${x}px`; c.style.top = `${y}px`;
+  }, [x, y]);
+  cursorAt = { x, y };
+}
+// Glide the fake cursor (and the real mouse, so hovers fire) to x,y.
+export async function moveCursor(page, x, y, ms = 450) {
+  const from = cursorAt, steps = 12;
+  for (let i = 1; i <= steps; i++) {
+    const t = i / steps, e = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+    const cx = from.x + (x - from.x) * e, cy = from.y + (y - from.y) * e;
+    await showCursor(page, cx, cy); await page.mouse.move(cx, cy);
+    await page.waitForTimeout(ms / steps);
+  }
+}
+export async function clickWithCursor(page, x, y) { await moveCursor(page, x, y); await page.waitForTimeout(150); await page.mouse.click(x, y); }
+export async function hideCursor(page) { await page.evaluate(() => document.getElementById('__kb_cursor')?.remove()); }
+
+// Record the window while `steps()` runs and save a GIF under WORK/screenshots (needs ffmpeg).
+// Uses CDP screencast, which only emits a frame when the screen changes, so each frame keeps
+// its real duration. `width` scales the GIF (default: window CSS width, i.e. 1x).
+export async function recordGif(page, rel, steps, { fps = 10, width } = {}) {
+  const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs');
+  const { execFileSync } = await import('node:child_process');
+  const { tmpdir } = await import('node:os');
+  const out = resolve(WORK, 'screenshots', rel);
+  mkdirSync(dirname(out), { recursive: true });
+  const dir = mkdtempSync(resolve(tmpdir(), 'kb-gif-'));
+  const cdp = await page.context().newCDPSession(page);
+  const frames = [];
+  cdp.on('Page.screencastFrame', async ({ data, metadata, sessionId }) => {
+    const file = resolve(dir, `f${String(frames.length).padStart(5, '0')}.png`);
+    writeFileSync(file, Buffer.from(data, 'base64')); frames.push({ file, t: metadata.timestamp });
+    await cdp.send('Page.screencastFrameAck', { sessionId }).catch(() => {});
+  });
+  await cdp.send('Page.startScreencast', { format: 'png', everyNthFrame: 1 });
+  try { await steps(); } finally { await cdp.send('Page.stopScreencast'); await cdp.detach().catch(() => {}); }
+  if (!frames.length) throw new Error('recordGif: no frames captured');
+  const list = frames.flatMap((f, i) => [`file '${f.file}'`, `duration ${frames[i + 1] ? Math.max(0.02, frames[i + 1].t - f.t).toFixed(3) : 1.5}`]);
+  writeFileSync(resolve(dir, 'list.txt'), [...list, `file '${frames.at(-1).file}'`].join('\n'));
+  const w = width || await page.evaluate(() => innerWidth);
+  execFileSync('ffmpeg', ['-v', 'error', '-y', '-f', 'concat', '-safe', '0', '-i', resolve(dir, 'list.txt'), '-vf',
+    `fps=${fps},scale=${w}:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff:max_colors=128[p];[b][p]paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle`, out]);
+  rmSync(dir, { recursive: true, force: true });
+  return out;
+}
