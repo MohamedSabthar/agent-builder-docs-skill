@@ -1,6 +1,7 @@
 """Check every link and #anchor in the article body of built docs pages.
 Serve the built site first: `npx docusaurus serve --port 3001` (from en/).
-product:// links resolve to https://wso2.com/integration-platform/docs/<product>/...
+product:// links (/integration-platform/docs/<product>/...) are listed as XPR: verify them in the
+target product's source branch, because localhost can't serve them and wso2.com returns 403 to scripts.
 Exit status 1 if any link is broken."""
 import re, sys, urllib.request, urllib.error, html, ssl
 from urllib.parse import urljoin, urldefrag
@@ -33,7 +34,12 @@ for p in PAGES:
     for h in hrefs:
         if h.startswith(("mailto:", "javascript:")): continue
         if h.startswith("#"): url = BASE + p + h
-        elif h.startswith("/integration-platform/docs/"): url = PROD + h
+        elif h.startswith("/integration-platform/docs/"):
+            # Other products are not served locally and wso2.com blocks bots (403), so list
+            # these for a source check instead: find the page in the target product's branch
+            # (integrator -> wso2-integrator, saas -> saas, connectors -> wso2-connectors) and
+            # confirm the #anchor heading exists.
+            print(f"  XPR (other product; verify against its source branch) {h}"); continue
         elif h.startswith("/"): url = BASE + h
         elif h.startswith("http"): url = h
         else: url = urljoin(BASE + p + "/", h)
